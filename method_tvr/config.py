@@ -185,6 +185,8 @@ class BaseOptions(object):
         opt.num_workers = 1 if opt.no_core_driver else opt.num_workers
         opt.pin_memory = not opt.no_pin_memory
         if "video" in opt.ctx_mode and opt.vid_feat_size > 3000:  # 3072, the normalized concatenation of resnet+i3d
+            print("opt.no_norm_vfeat", opt.no_norm_vfeat)
+            opt.no_norm_vfeat = True
             assert opt.no_norm_vfeat
         if "tef" in opt.ctx_mode and "video" in opt.ctx_mode:
             opt.vid_feat_size += 2

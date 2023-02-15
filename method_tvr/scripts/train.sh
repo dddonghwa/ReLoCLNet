@@ -8,10 +8,16 @@
 dset_name=$1  # see case below
 ctx_mode=$2  # [video, sub, tef, video_sub, video_tef, sub_tef, video_sub_tef]
 vid_feat_type=$3  # [resnet, i3d, resnet_i3d]
-feature_root=data/tvr_feature_release
+# feature_root=data/tvr_feature_release
+feature_root=/data/dataset/tvr/tvr_feature_release
 results_root=method_tvr/results
 vid_feat_size=2048
 extra_args=()
+
+eval_tasks_at_training="SVMR"
+stop_task="SVMR"
+lw_neg_q=0
+lw_neg_ctx=0
 
 if [[ ${ctx_mode} == *"sub"* ]] || [[ ${ctx_mode} == "sub" ]]; then
     if [[ ${dset_name} != "tvr" ]]; then

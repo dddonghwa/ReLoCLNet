@@ -36,16 +36,16 @@ class StartEndDataset(Dataset):
     def __init__(self, dset_name, data_path, desc_bert_path_or_handler, sub_bert_path_or_handler, max_desc_len,
                  max_ctx_len, vid_feat_path_or_handler, clip_length, ctx_mode="video", normalize_vfeat=True,
                  normalize_tfeat=True, h5driver=None, data_ratio=1.0):
+        logger.info("Load Datasets ...")
         self.dset_name = dset_name
         self.data_path = data_path
         self.data_ratio = data_ratio
 
         self.desc_bert_path_or_handler = desc_bert_path_or_handler
         self.max_desc_len = max_desc_len
-
         self.sub_bert_path_or_handler = sub_bert_path_or_handler
         self.max_ctx_len = max_ctx_len
-        self.vid_feat_path_or_handler = vid_feat_path_or_handler
+        self.vid_feat_path_or_handler = vid_feat_path_or_handler        
         self.clip_length = clip_length
         self.ctx_mode = ctx_mode
 
@@ -64,18 +64,18 @@ class StartEndDataset(Dataset):
             if isinstance(vid_feat_path_or_handler, h5py.File):
                 self.vid_feat_h5 = vid_feat_path_or_handler
             else:  # str path
-                self.vid_feat_h5 = h5py.File(vid_feat_path_or_handler, "r", driver=h5driver)
-
+                self.vid_feat_h5 = h5py.File(vid_feat_path_or_handler, "r") #, driver=h5driver)
+        
         if isinstance(desc_bert_path_or_handler, h5py.File):
             self.desc_bert_h5 = desc_bert_path_or_handler
         else:
-            self.desc_bert_h5 = h5py.File(desc_bert_path_or_handler, "r", driver=h5driver)
+            self.desc_bert_h5 = h5py.File(desc_bert_path_or_handler, "r") #, driver=h5driver)
 
         if self.use_sub:
             if isinstance(sub_bert_path_or_handler, h5py.File):
                 self.sub_bert_h5 = sub_bert_path_or_handler
             else:  # str path
-                self.sub_bert_h5 = h5py.File(sub_bert_path_or_handler, "r", driver=h5driver)
+                self.sub_bert_h5 = h5py.File(sub_bert_path_or_handler, "r") #, driver=h5driver)
 
         self.normalize_vfeat = normalize_vfeat
         self.normalize_tfeat = normalize_tfeat
@@ -90,10 +90,12 @@ class StartEndDataset(Dataset):
                     duration=raw_data["duration"], ts=raw_data["ts"])
         model_inputs = dict()
         model_inputs["query_feat"] = self.get_query_feat_by_desc_id(meta["desc_id"])
-
+        
         ctx_l = 0
         if self.use_video:
-            video_feat = uniform_feature_sampling(self.vid_feat_h5[meta['vid_name']][:], self.max_ctx_len)
+            vid_name = meta['vid_name']
+            video_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/concat/{vid_name}.npy')
+            video_feat = uniform_feature_sampling(video_feat, self.max_ctx_len)
             if self.normalize_vfeat:
                 video_feat = l2_normalize_np_array(video_feat)
             model_inputs["video_feat"] = torch.from_numpy(video_feat)
@@ -102,7 +104,9 @@ class StartEndDataset(Dataset):
             model_inputs["video_feat"] = torch.zeros((2, 2))
 
         if self.use_sub:  # no need for ctx feature, as the features are already contextualized
-            sub_feat = uniform_feature_sampling(self.sub_bert_h5[meta["vid_name"]][:], self.max_ctx_len)
+            vid_name = meta['vid_name']
+            sub_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/sub_query/{vid_name}.npy')
+            sub_feat = uniform_feature_sampling(sub_feat, self.max_ctx_len)
             if self.normalize_tfeat:
                 sub_feat = l2_normalize_np_array(sub_feat)
             model_inputs["sub_feat"] = torch.from_numpy(sub_feat)
@@ -143,7 +147,12 @@ class StartEndDataset(Dataset):
         return torch.tensor([st_idx, ed_idx], dtype=torch.long)
 
     def get_query_feat_by_desc_id(self, desc_id):
-        query_feat = self.desc_bert_h5[str(desc_id)][:self.max_desc_len]
+        if self.use_sub :
+            query_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/query_w_sub/{desc_id}.npy')
+        else :
+            query_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/query_only/{desc_id}.npy')
+        query_feat = query_feat[:self.max_desc_len]
+        # query_feat = self.desc_bert_h5[str(desc_id)][:self.max_desc_len]
         if self.normalize_tfeat:
             query_feat = l2_normalize_np_array(query_feat)
         return torch.from_numpy(query_feat)
@@ -182,7 +191,7 @@ class StartEndEvalDataset(Dataset):
         if isinstance(desc_bert_path_or_handler, h5py.File):
             self.desc_bert_h5 = desc_bert_path_or_handler
         else:
-            self.desc_bert_h5 = h5py.File(desc_bert_path_or_handler, "r", driver=h5driver)
+            self.desc_bert_h5 = h5py.File(desc_bert_path_or_handler, "r") # , driver=h5driver)
 
         video_data = load_json(video_duration_idx_path)[self.eval_split_name]
         self.video_data = [{"vid_name": k, "duration": v[0]} for k, v in video_data.items()]
@@ -235,17 +244,24 @@ class StartEndEvalDataset(Dataset):
             return self._get_item_query(index)
 
     def get_query_feat_by_desc_id(self, desc_id):
-        query_feat = self.desc_bert_h5[str(desc_id)][:self.max_desc_len]
+        if self.use_sub :
+            query_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/query_w_sub/{desc_id}.npy')
+        else :
+            query_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/query_only/{desc_id}.npy')
+        query_feat = query_feat[:self.max_desc_len]
+        # query_feat = self.desc_bert_h5[str(desc_id)][:self.max_desc_len]    
         if self.normalize_tfeat:
             query_feat = l2_normalize_np_array(query_feat)
         return torch.from_numpy(query_feat)
-
+            
+            
     def _get_item_query(self, index):
         """Need to batch"""
         raw_data = self.query_data[index]
         meta = dict(desc_id=raw_data["desc_id"], desc=raw_data["desc"],
                     vid_name=raw_data["vid_name"] if self.load_gt_video else None)
         model_inputs = dict()
+        
         model_inputs["query_feat"] = self.get_query_feat_by_desc_id(meta["desc_id"])
         return dict(meta=meta, model_inputs=model_inputs)
 
@@ -263,7 +279,9 @@ class StartEndEvalDataset(Dataset):
         ctx_l = 0
 
         if self.use_video:
-            video_feat = uniform_feature_sampling(self.vid_feat_h5[meta["vid_name"]][:], self.max_ctx_len)
+            vid_name = meta['vid_name']
+            video_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/concat/{vid_name}.npy')
+            video_feat = uniform_feature_sampling(video_feat, self.max_ctx_len)
             if self.normalize_vfeat:
                 video_feat = l2_normalize_np_array(video_feat)
             model_inputs["video_feat"] = torch.from_numpy(video_feat)
@@ -272,7 +290,9 @@ class StartEndEvalDataset(Dataset):
             model_inputs["video_feat"] = torch.zeros((2, 2))
 
         if self.use_sub:  # no need for ctx feature, as the features are already contextualized
-            sub_feat = uniform_feature_sampling(self.sub_bert_h5[meta["vid_name"]][:], self.max_ctx_len)
+            vid_name = meta['vid_name']
+            sub_feat = np.load(f'/data/projects/VT_localization/tsgv_data/data/tvr/sub_query/{vid_name}.npy')
+            sub_feat = uniform_feature_sampling(sub_feat, self.max_ctx_len)
             if self.normalize_tfeat:
                 sub_feat = l2_normalize_np_array(sub_feat)
             model_inputs["sub_feat"] = torch.from_numpy(sub_feat)

@@ -216,7 +216,7 @@ def start_training():
     opt.writer = SummaryWriter(opt.tensorboard_log_dir)
     opt.train_log_txt_formatter = "{time_str} [Epoch] {epoch:03d} [Loss] {loss_str}\n"
     opt.eval_log_txt_formatter = "{time_str} [Epoch] {epoch:03d} [Metrics] {eval_metrics_str}\n"
-
+    
     train_dataset = StartEndDataset(
         dset_name=opt.dset_name,
         data_path=opt.train_path,

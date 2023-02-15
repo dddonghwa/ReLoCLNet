@@ -462,7 +462,7 @@ def eval_epoch(model, eval_dataset, opt, save_submission_filename, tasks=("SVMR"
     total_time = time.time() - st_time
     print("\n" + "\x1b[1;31m" + str(total_time) + "\x1b[0m", flush=True)
 
-    IOU_THDS = (0.5, 0.7)  # (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
+    IOU_THDS = (0.3, 0.5, 0.7)  # (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0)
     logger.info("Saving/Evaluating before nms results")
     submission_path = os.path.join(opt.results_dir, save_submission_filename)
     eval_submission = get_submission_top_n(eval_submission_raw, top_n=max_after_nms)
